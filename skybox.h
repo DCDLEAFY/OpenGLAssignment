@@ -18,5 +18,7 @@ public:
 	void sendUniforms(glm::mat4 view, glm::mat4 projection);
 	void loadSkybox();
 	void bindSkybox();
+	void loadCubemap(GLuint& skytexture);
+	void loadFaces(GLuint& program);
 
 };

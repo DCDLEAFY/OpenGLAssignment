@@ -9,24 +9,24 @@
  */
 
 
-/* Link to static libraries, could define these as linker inputs in the project settings instead
-if you prefer */
+ /* Link to static libraries, could define these as linker inputs in the project settings instead
+ if you prefer */
 #pragma comment(lib, "glfw3.lib")
 #pragma comment(lib, "glloadD.lib")
 #pragma comment(lib, "opengl32.lib")
-//#pragma comment(lib, "soil.lib")
+ //#pragma comment(lib, "soil.lib")
 
 
 
-/* Include the header to the GLFW wrapper class which
-   also includes the OpenGL extension initialisation*/
+ /* Include the header to the GLFW wrapper class which
+	also includes the OpenGL extension initialisation*/
 #include "wrapper_glfw.h"
 #include <iostream>
 
 #include <stack>
 #include <vector>
 
-/* Include GLM core and matrix extensions*/
+	/* Include GLM core and matrix extensions*/
 #include <glm/glm.hpp>
 #include "glm/gtc/matrix_transform.hpp"
 #include <glm/gtc/type_ptr.hpp>
@@ -60,12 +60,12 @@ GLuint program;
 GLuint vao;			/* Vertex array (Containor) object. This is the index of the VAO that will be the container for
 					   our buffer objects */
 
-//GLuint skyboxVAO;
+					   //GLuint skyboxVAO;
 GLuint colourmode;	/* Index of a uniform to switch the colour mode in the vertex shader
 					  I've included this to show you how to pass in an unsigned integer into
 					  your vertex shader. */
 
-/* Position and view globals */
+					  /* Position and view globals */
 GLfloat angle_x, angle_inc_x, x, scaler, z, y;
 GLfloat angle_y, angle_inc_y, angle_z, angle_inc_z;
 GLuint drawmode;			// Defines drawing mode of sphere as points, lines or filled polygons
@@ -89,16 +89,16 @@ vec3 originview;
 vec3 headview;
 
 //terrain 
-terrain_loader *terrain;
+terrain_loader* terrain;
 
 //camera
 camera scenecamera;
 
 //skybox
-skybox sky;
+skybox *sky;
 
 
-void loadCubemap(vector<std::string> faces, GLuint &textureID);
+//void loadCubemap(vector<std::string> faces, GLuint& textureID);
 void loadtexture(const char* texpath, GLuint& texID);
 
 
@@ -112,7 +112,7 @@ void loadtexture(const char* texpath, GLuint& texID);
 This function is called before entering the main rendering loop.
 Use it for all your initialisation stuff
 */
-void init(GLWrapper *glw)
+void init(GLWrapper* glw)
 {
 
 	//particlex, particley, particlez = 10;
@@ -127,9 +127,11 @@ void init(GLWrapper *glw)
 	worldview = vec3(24, 5, 0);
 	scenecamera.setWorldView(worldview);
 	//skybox
-	sky = skybox();
+	sky = new skybox();
+
 	
-	loadCubemap(sky.faces, sky.skyboxTextureID);
+
+	//loadCubemap(sky.faces, sky.skyboxTextureID);
 	/* Set the object transformation controls to their initial values */
 
 	x = 0.05f;
@@ -141,18 +143,18 @@ void init(GLWrapper *glw)
 	aspect_ratio = 1.3333f;
 	colourmode = 0;
 
-	
+
 	// Generate index (name) for one vertex array object
 	glGenVertexArrays(1, &vao);
 
 	// Create the vertex array object and make it current
 	glBindVertexArray(vao);
 
-	
+
 
 	/* Load and create our object*/
 	tiny_obj[0].load_obj("..\\..\\objects\\house\\hatka_local_.obj");
-	
+
 	tiny_obj[1].load_obj("..\\..\\objects\\ghost\\source\\test.obj");
 
 	//tiny_obj[2].load_obj("..\\..\\objects\\house\\hatka_local_.obj");
@@ -160,9 +162,9 @@ void init(GLWrapper *glw)
 
 
 
-		
+
 	//skybox
-	sky.bindSkybox();
+	//sky.bindSkybox();
 
 	/* Load and build the vertex and fragment shaders */
 	try
@@ -171,29 +173,31 @@ void init(GLWrapper *glw)
 		skyprogram = glw->LoadShader("skybox.vert", "skybox.frag");
 		//particleprogram = glw->LoadShader("particle_object.vert", "particle_object.frag");
 	}
-	catch (exception &e)
+	catch (exception& e)
 	{
 		cout << "Caught exception: " << e.what() << endl;
 		cin.ignore();
 		exit(0);
 	}
 
+	sky->loadFaces(skyprogram);
+
 	// Image parameters
-	
+
 
 	// load an image using the stb_image.h library 
 	// Create an OpenGL texture from the image we have just loaded
 	// Be careful with the GL_RGB parameter as this may need to be changed if your image is not 24-bit
 	// If unsure then look at the nrChannels returned 
-	
-	
+
+
 
 	// check for an error during the load process of textures
 	loadtexture("..\\..\\images\\darkwood.jpg", texID);
 	loadtexture("..\\..\\images\\ghosttwo.jpg", texIDTwo);
 
-	
-	
+
+
 
 
 	/* Define uniforms to send to vertex shader */
@@ -208,14 +212,15 @@ void init(GLWrapper *glw)
 
 
 	//skybox
-	sky.skyviewID = glGetUniformLocation(skyprogram, "view");
-	sky.skyprojectionID = glGetUniformLocation(skyprogram, "projection");
+	sky->skyviewID = glGetUniformLocation(skyprogram, "view");
+	sky->skyprojectionID = glGetUniformLocation(skyprogram, "projection");
+
 
 	int loc2 = glGetUniformLocation(program, "tex1");
 	if (loc2 > 0) glUniform1i(loc2, 0);
 
-	int loc = glGetUniformLocation(skyprogram, "skybox");
-	if (loc > 0) glUniform1i(loc, 0);
+	/*int loc = glGetUniformLocation(skyprogram, "skybox");
+	if (loc > 0) glUniform1i(loc, 0);*/
 
 
 
@@ -248,25 +253,25 @@ void display()
 	scenecamera.sendUniforms();
 
 
-	cout << "x: " << worldview.x << ", y: "<< worldview.y << ", z: " << worldview.z  << '\n'<< endl;
-	
+	cout << "x: " << worldview.x << ", y: " << worldview.y << ", z: " << worldview.z << '\n' << endl;
+
 	//Can use this later in order to get first person effect
 	//cout << worldview.x << ", "<< worldview.y << ", " << worldview.z << "\n" << endl;
 
 
 	stack<mat4> modelscene;
 	modelscene.push(mat4(1.0));
-	
+
 
 	modelscene.push(modelscene.top()); {
-		modelscene.top() = translate(modelscene.top(), vec3(5, terrain->heightfield->heightAtPosition(2,0), 0));
+		modelscene.top() = translate(modelscene.top(), vec3(5, terrain->heightfield->heightAtPosition(2, 0), 0));
 		modelscene.top() = scale(modelscene.top(), vec3(0.01, 0.01, 0.01));
 
 
 		/*modelscene.top() = rotate(modelscene.top(), -radians(angle_x), vec3(1, 0, 0));
 		modelscene.top() = rotate(modelscene.top(), -radians(angle_y), vec3(0, 1, 0));
 		modelscene.top() = rotate(modelscene.top(), -radians(angle_z), vec3(0, 0, 1));*/
-	
+
 		glUniformMatrix4fv(modelID, 1, GL_FALSE, &modelscene.top()[0][0]);
 
 		glBindTexture(GL_TEXTURE_2D, texID);
@@ -276,11 +281,11 @@ void display()
 	modelscene.pop();
 
 	modelscene.push(modelscene.top()); {
-		
-		
-		modelscene.top() = translate(modelscene.top(), vec3(-10, terrain->heightfield->heightAtPosition(0,0) + 6,10));
+
+
+		modelscene.top() = translate(modelscene.top(), vec3(-10, terrain->heightfield->heightAtPosition(0, 0) + 6, 10));
 		modelscene.top() = scale(modelscene.top(), vec3(1, 1, 1));
-		
+
 		/*modelscene.top() = rotate(modelscene.top(), -radians(angle_x), vec3(1, 0, 0));
 		modelscene.top() = rotate(modelscene.top(), -radians(angle_y), vec3(0, 1, 0));
 		modelscene.top() = rotate(modelscene.top(), -radians(angle_z), vec3(0, 0, 1));*/
@@ -303,23 +308,23 @@ void display()
 
 	modelscene.push(modelscene.top()); {
 
-		
+
 		//modelscene.top() = rotate(modelscene.top(), -radians(90.f), vec3(0, 1, 0));
 
 		glUniformMatrix4fv(modelID, 1, GL_FALSE, &modelscene.top()[0][0]);
 		glBindTexture(GL_TEXTURE_2D, texID);
 		terrain->heightfield->drawObject(drawmode);
 		glBindTexture(GL_TEXTURE_2D, 0);
-		
+
 	}
 	modelscene.pop();
 
-	
+
 
 
 
 	glUseProgram(0);
-	
+
 	glDepthFunc(GL_LEQUAL);
 
 	/* Make the compiled shader program current */
@@ -328,10 +333,10 @@ void display()
 	mat4 skyview = scenecamera.view;
 	mat4 skyproj = scenecamera.projection;
 
-	glUniformMatrix4fv(sky.skyviewID , 1, GL_FALSE, &skyview[0][0]);
-	glUniformMatrix4fv(sky.skyprojectionID, 1, GL_FALSE, &skyproj[0][0]);
+	glUniformMatrix4fv(sky->skyviewID, 1, GL_FALSE, &skyview[0][0]);
+	glUniformMatrix4fv(sky->skyprojectionID, 1, GL_FALSE, &skyproj[0][0]);
 
-	sky.loadSkybox();
+	sky->loadSkybox();
 
 	glDisableVertexAttribArray(0);
 	glUseProgram(0);
@@ -344,7 +349,7 @@ void display()
 	angle_z += angle_inc_z;
 }
 
-void loadtexture(const char* texpath, GLuint &texID) {
+void loadtexture(const char* texpath, GLuint& texID) {
 
 	glGenTextures(1, &texID);
 
@@ -377,42 +382,13 @@ void loadtexture(const char* texpath, GLuint &texID) {
 	stbi_image_free(datatexture);
 }
 
-void loadCubemap(vector<std::string> faces, GLuint &textureID)
-{
-	//unsigned int textureID;
-	glGenTextures(1, &textureID);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
 
-	int width, height, nrChannels;
-	for (unsigned int i = 0; i < faces.size(); i++)
-	{
-		unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
-		if (data)
-		{
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-				0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data
-			);
-			stbi_image_free(data);
-		}
-		else
-		{
-			std::cout << "Cubemap tex failed to load at path: " << faces[i] << std::endl;
-			stbi_image_free(data);
-		}
-	}
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-}
 
 /* Called whenever the window is resized. The new window size is given, in pixels. */
 static void reshape(GLFWwindow* window, int w, int h)
 {
 	glViewport(0, 0, (GLsizei)w, (GLsizei)h);
-	aspect_ratio = ((float)w / 640.f*4.f) / ((float)h / 480.f*3.f);
+	aspect_ratio = ((float)w / 640.f * 4.f) / ((float)h / 480.f * 3.f);
 }
 
 /* change view angle, exit upon ESC */
@@ -479,7 +455,7 @@ static void keyCallback(GLFWwindow* window, int key, int s, int action, int mods
 	/* Cycle between drawing vertices, mesh and filled polygons */
 	if (key == 'N' && action != GLFW_PRESS)
 	{
-		drawmode ++;
+		drawmode++;
 		if (drawmode > 2) drawmode = 0;
 	}
 
@@ -490,7 +466,7 @@ static void keyCallback(GLFWwindow* window, int key, int s, int action, int mods
 /* Entry point of program */
 int main(int argc, char* argv[])
 {
-	GLWrapper *glw = new GLWrapper(1024, 768, "Lab5: Fun with texture");;
+	GLWrapper* glw = new GLWrapper(1024, 768, "Lab5: Fun with texture");;
 
 	if (!ogl_LoadFunctions())
 	{
@@ -509,6 +485,3 @@ int main(int argc, char* argv[])
 	delete(glw);
 	return 0;
 }
-
-
-
