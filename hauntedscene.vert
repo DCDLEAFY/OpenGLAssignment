@@ -57,7 +57,7 @@ void main()
 
 	float k1 = 0.1;
 	float k2 = 0.1;
-	float k3 = 0.1;
+	float k3 = 0.25;
 
 	attenuation = 1.0/(k1 + k2*distance_to_light + k3*pow(distance_to_light, 2));
 	fattenuation = 40*attenuation;

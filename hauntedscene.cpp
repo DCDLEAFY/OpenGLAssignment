@@ -36,7 +36,7 @@
 #include "terrain_loader.h"
 #include "camera.h"
 #include "skybox.h"
-//#include "particle_object.h";
+#include "particle_object.h";
 
 
 
@@ -52,10 +52,10 @@ using namespace glm;
 
 GLuint skyprogram;		/* Identifier for the shader prgoram */
 GLuint program;
-//GLuint particleprogram;
+GLuint particleprogram;
 
-//GLfloat particlex, particley, particlez;
-//particle_object particleobject;
+GLfloat px, py, pz;
+particle_object *particleObject;
 
 GLuint vao;			/* Vertex array (Containor) object. This is the index of the VAO that will be the container for
 					   our buffer objects */
@@ -88,6 +88,10 @@ vec3 worldview;
 vec3 originview;
 vec3 headview;
 
+
+float distancefromground;
+float increment;
+
 //terrain 
 terrain_loader* terrain;
 
@@ -114,18 +118,23 @@ Use it for all your initialisation stuff
 */
 void init(GLWrapper* glw)
 {
+	distancefromground = 4.f;
+	increment = 0.5f;
 
-	//particlex, particley, particlez = 10;
-	//particley = 50;
+	px, py, pz = 20;
+	py = 50;
 
+	particleObject = new particle_object();
 
 	//terrain
 	terrain = new terrain_loader();
 
 	//camera
 	scenecamera = camera();
-	worldview = vec3(24, 5, 0);
+	worldview = vec3(24, terrain->heightfield->heightAtPosition(24,0) + distancefromground, 0);
 	scenecamera.setWorldView(worldview);
+	originview = scenecamera.originView;
+	headview = scenecamera.headView;
 	//skybox
 	sky = new skybox();
 
@@ -171,7 +180,7 @@ void init(GLWrapper* glw)
 	{
 		program = glw->LoadShader("hauntedscene.vert", "hauntedscene.frag");
 		skyprogram = glw->LoadShader("skybox.vert", "skybox.frag");
-		//particleprogram = glw->LoadShader("particle_object.vert", "particle_object.frag");
+		particleprogram = glw->LoadShader("particle_object.vert", "particle_object.frag");
 	}
 	catch (exception& e)
 	{
@@ -225,7 +234,7 @@ void init(GLWrapper* glw)
 
 
 
-	//particleobject.create(particleprogram);
+	particleObject->create(particleprogram);
 }
 
 /* Called to update the display. Note that this function is called in the event loop in the wrapper
@@ -253,7 +262,7 @@ void display()
 	scenecamera.sendUniforms();
 
 
-	cout << "x: " << worldview.x << ", y: " << worldview.y << ", z: " << worldview.z << '\n' << endl;
+	//cout << "x: " << worldview.x << ", y: " << worldview.y << ", z: " << worldview.z << '\n' << endl;
 
 	//Can use this later in order to get first person effect
 	//cout << worldview.x << ", "<< worldview.y << ", " << worldview.z << "\n" << endl;
@@ -267,10 +276,6 @@ void display()
 		modelscene.top() = translate(modelscene.top(), vec3(5, terrain->heightfield->heightAtPosition(2, 0), 0));
 		modelscene.top() = scale(modelscene.top(), vec3(0.01, 0.01, 0.01));
 
-
-		/*modelscene.top() = rotate(modelscene.top(), -radians(angle_x), vec3(1, 0, 0));
-		modelscene.top() = rotate(modelscene.top(), -radians(angle_y), vec3(0, 1, 0));
-		modelscene.top() = rotate(modelscene.top(), -radians(angle_z), vec3(0, 0, 1));*/
 
 		glUniformMatrix4fv(modelID, 1, GL_FALSE, &modelscene.top()[0][0]);
 
@@ -286,9 +291,6 @@ void display()
 		modelscene.top() = translate(modelscene.top(), vec3(-10, terrain->heightfield->heightAtPosition(0, 0) + 6, 10));
 		modelscene.top() = scale(modelscene.top(), vec3(1, 1, 1));
 
-		/*modelscene.top() = rotate(modelscene.top(), -radians(angle_x), vec3(1, 0, 0));
-		modelscene.top() = rotate(modelscene.top(), -radians(angle_y), vec3(0, 1, 0));
-		modelscene.top() = rotate(modelscene.top(), -radians(angle_z), vec3(0, 0, 1));*/
 
 		glUniformMatrix4fv(modelID, 1, GL_FALSE, &modelscene.top()[0][0]);
 
@@ -298,18 +300,10 @@ void display()
 	}
 	modelscene.pop();
 
-	/*mat4 particleView = lookAt(
-		scenecamera.worldView,
-		vec3(-particlex, -particley, -particlez),
-		scenecamera.headView
-	);*/
 
-	//particleobject.drawParticles(scenecamera.projection, particleView);
 
 	modelscene.push(modelscene.top()); {
 
-
-		//modelscene.top() = rotate(modelscene.top(), -radians(90.f), vec3(0, 1, 0));
 
 		glUniformMatrix4fv(modelID, 1, GL_FALSE, &modelscene.top()[0][0]);
 		glBindTexture(GL_TEXTURE_2D, texID);
@@ -342,6 +336,15 @@ void display()
 	glUseProgram(0);
 
 	glDepthFunc(GL_LESS);
+
+	mat4 ParticleView = lookAt(
+		scenecamera.worldView,
+		vec3(-px, -py, -pz),
+		scenecamera.headView
+	);
+
+	particleObject->drawParticles(scenecamera.projection, ParticleView);
+
 
 	/* Modify our animation variables */
 	angle_x += angle_inc_x;
@@ -391,6 +394,39 @@ static void reshape(GLFWwindow* window, int w, int h)
 	aspect_ratio = ((float)w / 640.f * 4.f) / ((float)h / 480.f * 3.f);
 }
 
+
+void updateYWorldViewTerrain() {
+	worldview.y = terrain->heightfield->heightAtPosition(worldview.x, worldview.z) + distancefromground;
+	scenecamera.setView(worldview, originview, headview);
+}
+
+
+void updateWorldViewx(float incrementVal) {
+	worldview.x += incrementVal;
+	updateYWorldViewTerrain();
+}
+
+void updateWorldViewz(float incrementVal) {
+	worldview.z += incrementVal;
+	updateYWorldViewTerrain();
+}
+
+void updateOriginViewx(float incrementVal) {
+	originview.x += incrementVal;
+	updateYWorldViewTerrain();
+}
+
+void updateOriginViewz(float incrementVal) {
+	originview.z += incrementVal;
+	updateYWorldViewTerrain();
+}
+
+void updateOriginViewy(float incrementVal) {
+	originview.y += incrementVal;
+	updateYWorldViewTerrain();
+}
+
+
 /* change view angle, exit upon ESC */
 static void keyCallback(GLFWwindow* window, int key, int s, int action, int mods)
 {
@@ -400,41 +436,39 @@ static void keyCallback(GLFWwindow* window, int key, int s, int action, int mods
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, GL_TRUE);
 
-	/*if (key == 'Q') angle_inc_x -= 0.05f;
-	if (key == 'W') angle_inc_x += 0.05f;
-	if (key == 'E') angle_inc_y -= 0.05f;
-	if (key == 'R') angle_inc_y += 0.05f;
-	if (key == 'T') angle_inc_z -= 0.05f;
-	if (key == 'Y') angle_inc_z += 0.05f;*/
-
 
 
 	//World view camera controls
-	if (key == 'Q') {
-		worldview.x += 0.5;
-		scenecamera.setWorldView(worldview);
+	if (key == 'U') {
+		updateWorldViewx(increment);
+	}
+	if (key == 'I') {
+		updateWorldViewx(-increment);
+	}
+	if (key == 'O') {
+		updateWorldViewz(increment);
+	}
+	if (key == 'P') {
+		updateWorldViewz(-increment);
 	}
 	if (key == 'W') {
-		worldview.x -= 0.5;
-		scenecamera.setWorldView(worldview);
+		updateOriginViewy(increment);
+	}
+	if (key == 'A') {
+		updateOriginViewz(-increment);
+	}
+	if (key == 'S') {
+		updateOriginViewy(-increment);
+	}
+	if (key == 'D') {
+		updateOriginViewz(increment);
 	}
 	if (key == 'E') {
-		worldview.y += 0.5;
-		scenecamera.setWorldView(worldview);
+		updateOriginViewx(-increment);
 	}
-	if (key == 'R') {
-		worldview.y -= 0.5;
-		scenecamera.setWorldView(worldview);
+	if (key == 'Q') {
+		updateOriginViewx(increment);
 	}
-	if (key == 'T') {
-		worldview.z += 0.5;
-		scenecamera.setWorldView(worldview);
-	}
-	if (key == 'Y') {
-		worldview.z -= 0.5;
-		scenecamera.setWorldView(worldview);
-	}
-
 
 
 	if (key == 'A') scaler -= 0.02f;
@@ -460,6 +494,7 @@ static void keyCallback(GLFWwindow* window, int key, int s, int action, int mods
 	}
 
 }
+
 
 
 
