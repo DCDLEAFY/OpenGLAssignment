@@ -1,2 +1,7 @@
 # OpenGLAssignment
-Second openGL assignment in university
+Implemented: 
+- Phong lighting
+- Ambient
+- Objects and texture loaded
+- Particles
+- Camera Movement
